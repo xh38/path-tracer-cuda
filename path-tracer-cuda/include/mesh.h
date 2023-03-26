@@ -6,16 +6,20 @@
 
 class mesh {
 public:
-	__device__ mesh(int num_t, int num_l, triangle* triangles,  int* light_indices);
+	__device__ mesh(int num_t, int num_l, int num_m, triangle* triangles,  int* light_indices, material* materials);
 	__device__ ~mesh();
-    __device__ void set(int num_t, int num_l, triangle* triangles, int* light_indices);
-    lbvh_node* BVHAccel;
+    __device__ void set(int num_t, int num_l, int num_m, triangle* triangles, int* light_indices, material* materials);
+    //lbvh_node* BVHAccel;
 	triangle* m_triangles;
+    material* m_materials;
+	int* m_light_indices;
 
-    int* m_light_indices;
+
     int m_num_triangles;
+    int m_num_materials;
     int m_num_lights;
-    int m_num_bvhnode;
+
+    //int m_num_bvhnode;
 
     float light_area_sum;
 
@@ -55,12 +59,12 @@ public:
 };
 
 __device__
-mesh::mesh(int num_t, int num_l, triangle* triangles, int* light_indices) {
+mesh::mesh(int num_t, int num_l, int num_m, triangle* triangles, int* light_indices, material* materials) {
     m_num_triangles = num_t;
     m_num_lights = num_l;
-    //m_num_materials = num_m;
+    m_num_materials = num_m;
     m_triangles = triangles;
-    //m_materials = materials;
+    m_materials = materials;
     m_light_indices = light_indices;
     light_area_sum = 0;
     for (int i = 0; i < m_num_lights; i++) {
@@ -77,12 +81,12 @@ mesh::~mesh() {
 }
 
 __device__ void
-mesh::set(int num_t, int num_l, triangle *triangles, int *light_indices) {
+mesh::set(int num_t, int num_l, int num_m, triangle* triangles, int* light_indices, material* materials) {
     m_num_triangles = num_t;
     m_num_lights = num_l;
-    //m_num_materials = num_m;
+    m_num_materials = num_m;
     m_triangles = triangles;
-    //m_materials = materials;
+    m_materials = materials;
     m_light_indices = light_indices;
     light_area_sum = 0;
     for (int i = 0; i < m_num_lights; i++) {

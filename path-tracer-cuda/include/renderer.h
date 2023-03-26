@@ -136,7 +136,7 @@ __global__ void shade_path_segment(path_segment* dev_paths, mesh* dev_mesh, int 
 	}
 
 	triangle hit_triangle = dev_mesh->m_triangles[local_path.hit_idx];
-	material hit_material = hit_triangle.m_material;
+	material hit_material = dev_mesh->m_materials[hit_triangle.m_material_id];
 
 	if (hit_material.is_light())
 	{
@@ -159,7 +159,7 @@ __global__ void shade_path_segment(path_segment* dev_paths, mesh* dev_mesh, int 
 		int light_id;
 		dev_mesh->sample_light(light_point, light_id, light_pdf, &rand_state[path_idx]);
 		vec3 light_normal = dev_mesh->m_triangles[dev_mesh->m_light_indices[light_id]].m_normal;
-		vec3 radiance = dev_mesh->m_triangles[dev_mesh->m_light_indices[light_id]].m_material.get_radiance();
+		vec3 radiance = dev_mesh->m_materials[dev_mesh->m_triangles[dev_mesh->m_light_indices[light_id]].m_material_id].get_radiance();
 
 		vec3 shadow_ray_vec = light_point - hit_point;
 		vec3 shaow_ray_dir = normalize(shadow_ray_vec);

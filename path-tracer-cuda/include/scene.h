@@ -51,7 +51,8 @@ __host__ bool is_matelial_light(std::vector<int>& light_indeces, int material_in
     return false;
 }
 
-__host__ void load_scene(std::string name, thrust::host_vector<triangle> &host_triangles, thrust::host_vector<material> &host_materials, std::unique_ptr<camera_param>& cam_param, int& num_light)
+__host__ void load_scene(std::string name, thrust::host_vector<triangle> &host_triangles, thrust::host_vector<material> &host_materials, 
+    thrust::host_vector<int>& host_light_indices, std::unique_ptr<camera_param>& cam_param)
 {
     std::string prefix = R"(C:\Users\AAA\Desktop\PathTracer\PathTracer\PathTracer\example-scenes-cg22\)";
     const std::string &scene_name = name;
@@ -149,7 +150,6 @@ __host__ void load_scene(std::string name, thrust::host_vector<triangle> &host_t
     load_materials(host_materials, materials, light_map, light_material_indices, texture_prefix);
     std::cout << materials.size() << " materials loaded" << std::endl;
 
-    num_light = 0;
     size_t tri_id = 0;
     // Loop over shapes
     for (size_t s = 0; s < shapes.size(); s++) {
@@ -157,9 +157,7 @@ __host__ void load_scene(std::string name, thrust::host_vector<triangle> &host_t
         size_t index_offset = 0;
         for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
             const int material_index = shapes[s].mesh.material_ids[f];
-            if (is_matelial_light(light_material_indices, material_index)) {
-                num_light++;
-            }
+            
             size_t fv = size_t(shapes[s].mesh.num_face_vertices[f]);
             std::array<vec3, 3> face_vertices;
             std::array<float, 3> tex_coord_x;
@@ -180,8 +178,11 @@ __host__ void load_scene(std::string name, thrust::host_vector<triangle> &host_t
                 }
 
             }
-            triangle temp_triangle{face_vertices[0], face_vertices[1], face_vertices[2], host_materials[material_index], tri_id};
+            triangle temp_triangle{face_vertices[0], face_vertices[1], face_vertices[2], material_index, tri_id};
             host_triangles.push_back(temp_triangle);
+            if (is_matelial_light(light_material_indices, material_index)) {
+                host_light_indices.push_back(tri_id);
+            }
             tri_id++;
             index_offset += fv;
         }
@@ -241,46 +242,34 @@ __global__ void set_camera_cuda(camera* dev_cam, camera_param* cam_param) {
     if (x ==0 && y == 0)dev_cam->set(cam_param);
 }
 
-__global__ void create_material_cuda(material** materials, material_param* material_params, int num_material) {
-	int x = threadIdx.x + blockIdx.x * blockDim.x;
-	int y = threadIdx.y + blockIdx.y * blockDim.y;
-	if (x ==0 && y == 0)
-	{
-        for (int i = 0; i < num_material; i++) {
-            materials[i] = new material(material_params[i]);
-        }
-	}
-}
+//__global__ void create_light_indices_cuda(triangle* triangles, int* lights, int num_triangle, int num_lights) {
+//	int x = threadIdx.x + blockIdx.x * blockDim.x;
+//	int y = threadIdx.y + blockIdx.y * blockDim.y;
+//	if (x == 0&& y== 0)
+//	{
+//        for (int i = 0, light_count = 0; i < num_triangle && light_count < num_lights; i++) {
+//            if (triangles[i].m_material.is_light()) {
+//                lights[light_count] = i;
+//                light_count++;
+//            }
+//        }
+//	}
+//}
 
-
-__global__ void create_light_indices_cuda(triangle* triangles, int* lights, int num_triangle, int num_lights) {
-	int x = threadIdx.x + blockIdx.x * blockDim.x;
-	int y = threadIdx.y + blockIdx.y * blockDim.y;
-	if (x == 0&& y== 0)
-	{
-        for (int i = 0, light_count = 0; i < num_triangle && light_count < num_lights; i++) {
-            if (triangles[i].m_material.is_light()) {
-                lights[light_count] = i;
-                light_count++;
-            }
-        }
-	}
-}
-
-__global__ void set_mesh_cuda(mesh* p_mesh, triangle* triangles, int num_t, int* light_indices, int num_lights) {
+__global__ void set_mesh_cuda(mesh* p_mesh, triangle* triangles, int num_t, int* light_indices, int num_lights, material* materials, int num_material) {
 	int x = threadIdx.x + blockIdx.x * blockDim.x;
 	int y = threadIdx.y + blockIdx.y * blockDim.y;
 	if (x == 0 && y == 0)
 	{
-		p_mesh->set(num_t, num_lights, triangles, light_indices);
+		p_mesh->set(num_t, num_lights, num_material, triangles, light_indices, materials);
 	}
 }
 
-__global__ void set_BVH_mesh_cuda(mesh* p_mesh, triangle* triangles, int num_t, int* light_indices, int num_lights) {
-    int x = threadIdx.x + blockIdx.x * blockDim.x;
-    int y = threadIdx.y + blockIdx.y * blockDim.y;
-    if (x == 0 && y == 0)
-    {
-        p_mesh->set(num_t, num_lights, triangles, light_indices);
-    }
-}
+//__global__ void set_BVH_mesh_cuda(mesh* p_mesh, triangle* triangles, int num_t, int* light_indices, int num_lights) {
+//    int x = threadIdx.x + blockIdx.x * blockDim.x;
+//    int y = threadIdx.y + blockIdx.y * blockDim.y;
+//    if (x == 0 && y == 0)
+//    {
+//        p_mesh->set(num_t, num_lights, triangles, light_indices);
+//    }
+//}

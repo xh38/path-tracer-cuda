@@ -21,16 +21,17 @@ public:
 	vec3 m_normal; // surface normal
 	//tex_coord t0, t1, t2;
 	float m_area; // surface area
-	material m_material;
+    int m_material_id;
+	//material m_material;
     __host__ triangle() = default;
-	__host__ __device__ triangle(vec3 v0, vec3 v1, vec3 v2, material m, size_t id);
+	__host__ __device__ triangle(vec3 v0, vec3 v1, vec3 v2, int material_id, size_t id);
 	//__device__ bool is_light();
     __device__ bool intersect(const ray& ray, float& t);
     __host__ __device__ AABB get_aabb();
 	__device__ void sample_point(vec3& sample_point, float& pdf, curandState* local_rand_state) const;
 };
 
-__host__ __device__ inline triangle::triangle(vec3 v0, vec3 v1, vec3 v2, material m, size_t id): m_v0(v0), m_v1(v1), m_v2(v2), m_material(m), m_id(id) {
+__host__ __device__ inline triangle::triangle(vec3 v0, vec3 v1, vec3 v2, int material_id, size_t id): m_v0(v0), m_v1(v1), m_v2(v2), m_material_id(material_id), m_id(id) {
 	m_e1 = m_v1 - m_v0;
 	m_e2 = m_v2 - m_v0;
 	m_area = 0.5f * cross(m_e1, m_e2).length();

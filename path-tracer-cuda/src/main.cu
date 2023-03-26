@@ -73,19 +73,22 @@ __global__ void rand_init(int width, int height, curandState* rand_state) {
 
 
 int main() {
-    std::string name = R"(cornell-box)";
+    std::string name = R"(cornell-box-test)";
     const int spp = 512;
     int tx = 16;
     int ty = 16;
+    int tz = 16;
     const int max_depth = 5;
     //load scene host
     thrust::host_vector<material> host_material;
     thrust::host_vector<triangle> host_triangle;
+    thrust::host_vector<int> host_light_indices;
     
 
     std::unique_ptr<camera_param> host_cam_param = std::make_unique<camera_param>();
-    int num_lights;
-    load_scene(name, host_triangle, host_material, host_cam_param, num_lights);
+    
+    load_scene(name, host_triangle, host_material, host_light_indices, host_cam_param);
+    int num_lights = host_light_indices.size();
     //device_cam_param = thrust::device_ptr<camera_param>(host_cam_param.get());
     camera_param* device_cam_param;
     checkCudaErrors(cudaMallocManaged((void**)&device_cam_param, sizeof(camera_param)));
@@ -109,19 +112,20 @@ int main() {
     //std::cout << "bvh built\n" << std::endl;
 	//copy triangle to device
     thrust::device_vector<triangle> dev_triangles(host_triangle);
+    thrust::device_vector<material> dev_materials(host_material);
     //thrust::device_vector<lbvh_node> dev_bvh(host_bvh);
 
     // get light indices
-    thrust::device_vector<int> light_indices;
-    light_indices.resize(num_lights);
-    create_light_indices_cuda<<<1,1>>>(dev_triangles.data().get(), light_indices.data().get(), dev_triangles.size(), num_lights);
-    checkCudaErrors(cudaGetLastError());
-    checkCudaErrors(cudaDeviceSynchronize());
-    
+    thrust::device_vector<int> dev_light_indices(host_light_indices);
+    //light_indices.resize(num_lights);
+    //create_light_indices_cuda<<<1,1>>>(dev_triangles.data().get(), light_indices.data().get(), dev_triangles.size(), num_lights);
+    //checkCudaErrors(cudaGetLastError());
+    //checkCudaErrors(cudaDeviceSynchronize());
     std::cout << num_lights << " light indices created\n";
 
     thrust::device_ptr<mesh> p_mesh = thrust::device_malloc<mesh>(1);
-	set_mesh_cuda<<<1,1>>>(p_mesh.get(), dev_triangles.data().get(), dev_triangles.size(), light_indices.data().get(), num_lights);
+    
+	set_mesh_cuda<<<1,1>>>(p_mesh.get(), dev_triangles.data().get(), dev_triangles.size(), dev_light_indices.data().get(), num_lights, dev_materials.data().get(), dev_materials.size());
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaDeviceSynchronize());
     std::cout << "mesh set\n";
